@@ -5,12 +5,11 @@ import hashlib
 import json
 import os
 import re
-import socket
 import shutil
 import uuid
 import zipfile
 
-__version__ = "1.8.3"  # maj:arch.changes . min:new functionality . tuning:fixes,tuning
+__version__ = "1.8.5"  # maj:arch.changes . min:new functionality . tuning:fixes,tuning
 
 _ILLEGAL_FILENAME_CHARS = "/ \"\'\\,.;:#$!?@%*"
 
@@ -19,7 +18,7 @@ _ILLEGAL_FILENAME_CHARS = "/ \"\'\\,.;:#$!?@%*"
 # #########################################################################
 
 def conclear():  # clear console log
-    os.system("cls" if os.name == "nt" else "clear")
+    print("\033[H\033[J", end="", flush=True)
 
 
 # #########################################################################
@@ -67,7 +66,7 @@ def arr_unify(arr_in):  # remove duplicates from array (preserve order)
 
 
 # #########################################################################
-def split_list_into_chunks(lst, n):  # split list to n parts
+def split_list_into_chunks(lst, n):  # split list into chunks of size n
     return [lst[i:i + n] for i in range(0, len(lst), n)]
 
 
@@ -91,8 +90,12 @@ def get_datetime_str(dateonly=False, timeonly=False, filesafe=True, utcplus=3): 
 
 
 # #########################################################################
-def sec_to_hms(s):  # seconds to hh:mm:ss
-    return str(timedelta(seconds=s))
+def sec_to_hms(s):  # seconds to hh:mm:ss (always HH:MM:SS, works for >24h)
+    s = int(s)
+    h = s // 3600
+    m = (s % 3600) // 60
+    sec = s % 60
+    return f"{h:02d}:{m:02d}:{sec:02d}"
 
 
 # #########################################################################
@@ -225,7 +228,8 @@ def make_unique_filename(given_path, digits=5): # unique-numbered filename from 
     fpath = os.path.normpath(given_path)
     fdir = os.path.dirname(fpath)
     fname, fext = get_filenameext(fpath)
-    os.makedirs(fdir, exist_ok=True)
+    if fdir:
+        os.makedirs(fdir, exist_ok=True)
 
     #find existing files by template <name>_#####<.ext>
     pattern = fr"^.+?_[0-9]{{{digits}}}\.[a-zA-Z0-9]+$"
@@ -323,7 +327,7 @@ def pack_archive_unique(all_files, fpath): # pack archive + make unique names if
         with zipfile.ZipFile(fpath, "w", zipfile.ZIP_DEFLATED) as zipf:
             added_filenames = set()
             for f in all_files:
-                fname, fext = get_filenameext(os.path.basename(f))
+                fname, fext = get_filenameext(f)
                 counter = 1 # prevent name duplicates in ZIP
                 new_fname = f"{fname}{fext}"
                 while new_fname in zipf.namelist() or new_fname in added_filenames:
@@ -352,6 +356,7 @@ def rem_arch_tmp(extract_path):
 # #########################################################################
 
 def get_local_ip():  # get client ip-address string
+    import socket
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         try:
             s.connect(("10.255.255.255", 1)) # fake connection
